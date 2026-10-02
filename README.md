@@ -88,6 +88,9 @@ weather-elt-pipeline/
 │   └── transform.py         # raw_weather -> weather_hourly -> weather_daily_summary
 ├── sql/
 │   └── create_tables.sql    # DDL for raw_weather, weather_hourly, weather_daily_summary
+├── dashboard/
+│   ├── app.py                # Streamlit dashboard, reads straight from Postgres
+│   └── requirements.txt
 └── data/raw/                # raw JSON landing zone (gitignored)
 ```
 
@@ -121,6 +124,25 @@ To stop everything (data persists in the Docker volume between runs):
 docker compose down
 ```
 
+## Dashboard
+
+A small Streamlit dashboard in `dashboard/app.py` reads directly from the
+same Postgres warehouse the pipeline writes to — no separate data path, so
+it always reflects the latest pipeline run.
+
+It needs its own Python environment (kept separate from the Airflow
+container's dependencies) and runs on your host machine, connecting to
+Postgres on `localhost:5432` (published by `docker-compose.yml`):
+
+```bash
+pip install -r dashboard/requirements.txt
+streamlit run dashboard/app.py
+```
+
+This opens a browser tab showing current conditions, a daily temperature/
+precipitation chart, and recent hourly detail. Requires `docker compose up`
+to already be running with at least one successful pipeline run.
+
 ## Troubleshooting
 
 **`AttributeError: module 'sqlalchemy.orm.attributes' has no attribute
@@ -134,4 +156,4 @@ pin, then `docker compose up airflow-init` followed by `docker compose up`.
 
 **`failed to connect to the docker API`** — Docker Desktop isn't running.
 Open the Docker Desktop app and wait for it to report "running" before
-retrying any `docker compose` command.
+retrying any `docker compose` command. 
