@@ -18,6 +18,7 @@ UPSERT_HOURLY_SQL = text(
     """
     WITH expanded AS (
         SELECT
+            r.fetched_at,
             city,
             (hourly ->> 'time')::timestamp AS observed_at,
             (hourly ->> 'temperature')::numeric AS temperature_c,
@@ -43,10 +44,20 @@ UPSERT_HOURLY_SQL = text(
                     jsonb_array_elements_text(r.payload -> 'hourly' -> 'weather_code') AS weather_code
             ) t
         ) hourly_row
+    ),
+    -- Different pipeline runs can fetch overlapping hours (extract.py always
+    -- asks for "past_days=1, forecast_days=1"). Keep only the most recently
+    -- fetched value for each (city, observed_at) so the INSERT below never
+    -- targets the same conflict row twice in one statement.
+    deduped AS (
+        SELECT DISTINCT ON (city, observed_at)
+            city, observed_at, temperature_c, precipitation_mm, wind_speed_kmh, weather_code
+        FROM expanded
+        ORDER BY city, observed_at, fetched_at DESC
     )
     INSERT INTO weather_hourly (city, observed_at, temperature_c, precipitation_mm, wind_speed_kmh, weather_code)
     SELECT city, observed_at, temperature_c, precipitation_mm, wind_speed_kmh, weather_code
-    FROM expanded
+    FROM deduped
     ON CONFLICT (city, observed_at) DO UPDATE SET
         temperature_c = EXCLUDED.temperature_c,
         precipitation_mm = EXCLUDED.precipitation_mm,
