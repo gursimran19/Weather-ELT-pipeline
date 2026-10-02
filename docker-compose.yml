@@ -1,0 +1,66 @@
+version: "3.8"
+
+x-airflow-common: &airflow-common
+  image: apache/airflow:2.9.3
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+    # Connection string the DAG/scripts use to reach the warehouse schema in the same Postgres instance
+    WAREHOUSE_DB_URI: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    PYTHONPATH: /opt/airflow
+    RAW_DATA_DIR: /opt/airflow/data/raw
+    # Quick-start way to add deps to the stock Airflow image; for anything
+    # more serious, swap this for a custom Dockerfile that pip installs at build time.
+    _PIP_ADDITIONAL_REQUIREMENTS: "requests>=2.31 psycopg2-binary>=2.9"
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./scripts:/opt/airflow/scripts
+    - ./sql:/opt/airflow/sql
+    - ./data:/opt/airflow/data
+    - airflow_logs:/opt/airflow/logs
+  depends_on:
+    - postgres
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate &&
+        airflow users create \
+          --username admin --password admin \
+          --firstname Gursimran --lastname Singh \
+          --role Admin --email admin@example.com
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    depends_on:
+      - airflow-init
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    depends_on:
+      - airflow-init
+
+volumes:
+  postgres_data:
+  airflow_logs:
