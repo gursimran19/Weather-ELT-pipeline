@@ -135,18 +135,3 @@ pin, then `docker compose up airflow-init` followed by `docker compose up`.
 **`failed to connect to the docker API`** — Docker Desktop isn't running.
 Open the Docker Desktop app and wait for it to report "running" before
 retrying any `docker compose` command.
-
-## Extending it (good next steps for the portfolio writeup)
-
-- **Add a second source** (e.g. the Winnipeg Open Data 311 or transit feed)
-  landing into its own raw table, to show multi-source ingestion.
-- **Swap plain SQL for dbt** — move `transform.py`'s SQL into dbt models
-  with tests (`not_null`, `unique`) for a stronger "modern data stack" story.
-- **Add data quality checks** — a Great Expectations or custom validation
-  task between load and transform.
-- **Dashboard** — point Power BI or a small Streamlit app at
-  `weather_daily_summary` for a visible end result.
-- **Alerting** — reuse the Telegram bot pattern from CricketMatchNotifier to
-  ping on a failed DAG run.
-- **CI** — a GitHub Actions workflow that lints the DAG and runs the SQL
-  against a throwaway Postgres container on each push.
